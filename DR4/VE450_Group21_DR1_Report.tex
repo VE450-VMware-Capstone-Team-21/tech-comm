@@ -1,0 +1,1250 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage{color}
+\usepackage{setspace}
+\usepackage{indentfirst}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usepackage{subfigure}
+\usepackage{float}
+\usepackage[margin=2.54cm]{geometry}
+\usepackage{array}
+\usepackage{caption,subcaption}
+\usepackage{xcolor}  
+\usepackage{listings}  
+\usepackage{comment}
+\usepackage[bookmarks=true,hidelinks]{hyperref}
+\usepackage{colortbl}
+\usepackage{minted}
+\usemintedstyle{friendly}
+\setminted{linenos=true,tabsize=4,xleftmargin=2em,xrightmargin=0em,breaklines=true}
+\lstset{
+	numbers=left, 
+	numberstyle= \tiny\color{gray},
+	language = verilog,
+	basicstyle = \ttfamily,
+	keywordstyle= \color{blue!70},
+	commentstyle= \slshape\color{gray},
+	tabsize = 4, 
+	frame=shadowbox, 
+	rulesepcolor= \color{red!20!green!20!blue!20},
+	breaklines=true,
+	xleftmargin=2em, xrightmargin=0em, aboveskip=1em,
+	framexleftmargin=2em,
+	showstringspaces=false
+} 
+\begin{document}
+\begin{titlepage}
+	\begin{center}
+		\begin{onehalfspace}
+			\hrulefill
+			\begin{center}
+				\sc{UM-SJTU Joint Institute \\
+					Major Design Experience \\
+					(Ve450 FA2020)}
+			\end{center}
+			\hrulefill
+			\vspace*{1cm}
+			\begin{center}
+				\begin{Large}
+					\sc{VMware\#1 - AR in Data Centers \\[0.2cm]
+					Final Report}
+				\end{Large}\\[1cm]
+				Sponsor: Gavin Lu, VMware \\
+				Mentor: Yixing Jia, VMware \\
+				Instructor: Mingjian Li, UMJI \\[1cm]
+				\begin{figure}[H]
+				    \centering
+	                \includegraphics[scale=0.38]{title3-1.png}
+	                %\caption*{An AR app for aiding data center maintenance}
+                \end{figure}
+                \vspace*{1cm}
+				Group 21\\
+				\begin{table}[h]
+					\centering
+					\begin{tabular}{p{3cm}p{6cm}}
+						Shuyi Zhou & Email: \href{mailto:zhoushuyi_sue@sjtu.edu.cn}{zhoushuyi\_sue@sjtu.edu.cn} \\
+						Chenyun Tao & Email: \href{mailto:tcy1999@sjtu.edu.cn}{tcy1999@sjtu.edu.cn} \\ 
+						Liying Han & Email: \href{mailto:hanliying_17@sjtu.edu.cn}{hanliying\_17@sjtu.edu.cn} \\
+						Yaxin Chen & Email: \href{mailto:leepace666666@sjtu.edu.cn}{leepace666666@sjtu.edu.cn}\\
+						Jinglei Xie & Email: \href{mailto:xie_jinglei@sjtu.edu.cn}{xie\_jinglei@sjtu.edu.cn}
+					\end{tabular}
+				\end{table}  
+				\vspace*{0.5cm}
+				\today
+			\end{center}
+		\end{onehalfspace}
+	\end{center}
+\end{titlepage}
+\begin{onehalfspace}
+% tcy
+\section*{Executive Summary}
+A data center is a technical facility storing a lot of computers, servers, and associated devices with power and cooling systems. To ensure a data center can operate normally all time, maintenance and audit work are extremely important. Nowadays, people in the industry have already developed different computer systems to assist those work by providing access to information about assets, power, environment, and so on, but they are usually not integrated together. How to provide on-site technicians with easy, vivid, and user-friendly information access when conducting maintenance and audit work is a problem worth investigating.
+
+In this project, we have developed an Augmented Reality (AR) based app that runs on smartphones and tablets to aid data center maintenance and audit work. It obtains data from the back-end server Flowgate, which integrates all the information related to a specific data center, and displays necessary information onto ``real scenes" in the data center using AR technology.
+
+The customer requirements of our project include short reaction time, information correctness, comfortable display, and portability. By conducting an extensive literature search and considering the constraints in reality, we further set up the engineering specifications. We quantify the requirements of object localization time, barcode identification time, database query time, AR image generation time, object localization accuracy, data retrieval accuracy, frame rate, appropriate temperature, and package size.
+
+For the design of our app, we have generated quite a few engineering concepts related to barcode detection, information display, and information retrieval through morphological analysis. Concepts with the highest scoring result based on weighted decision matrices are chosen for our design. As a result, we choose to use ML Kit for barcode localization and identification, apply caching to data retrieval, and use 3-D text windows for information display. In our final design, the user can first scan a barcode, and our app will decode the barcode with the help of the ML Kit. Then the app will use the decoded information to fetch data from Flowgate, where caching is used to improve the reaction time. Finally, the app will display the obtained information based on 3-D coordinates in the real world.
+
+For implementation, we first install and configure the back-end Flowgate system. Then we implement the AR apps on both Android and iOS platforms, using  Android Studio for Java development, and Xcode for Swift development.
+
+In general, our app can fulfill the needs of data center technicians, by displaying all kinds of necessary information in a user-friendly manner. Testing results show that our product meets the customer requirements and satisfies almost all the strict engineering specifications. It also realizes a ``Freeze" function to free users’ hands. However, some weaknesses still exist. For example, sometimes the barcode identification time is too long, and the information window may not align strictly with the plane of the device. We suggest that future developers can improve on those issues, and consider adding more features including a machine learning model to recognize different models of racks, a power saving mode, and so on.\\[6pt]
+
+\noindent \textbf{Keywords:} Augmented Reality, Data Center, Mobile Application, Barcode, Flowgate
+\newpage
+\tableofcontents
+\newpage
+
+\section{Introduction}
+We are Group 21 of Capstone Design Fall 2020 from University of Michigan - Shanghai Jiao Tong University Joint Institute. The title of our project is \textbf{AR in Data Centers}, sponsored by VMware, Inc. As the name implies, the project is about applying augmented reality (AR) to work related with data centers. In this report, we will provide necessary background and introduction to the project, engineering specifications for our project, concept generation and selection process, final design description, implementing plan, test results, discussion of our design and recommendations for future teams.
+
+For this section, the background of our project will be presented, the problems and needs will be formally defined, the strategy will be generally discussed, and the expected outcome will be stated.
+
+\subsection{Background Overview}
+\label{sec:backend}
+A Data Center (DC) is a major infrastructure and facility which contains a high quantity of servers and computers to provide internet services for many companies in the world (such as Google, Amazon, etc.) \cite{xjl1}. It usually requires high-level reliability and availability. In many DCs, various kinds of critical components keep running all time, and any interruption in its services may cause major problems. Thus, we need both regular and emergent DC maintenance to make sure that computers, servers, cooling systems, and many other critical devices are working properly. If any error happens, fast recovery should be conducted. In addition, regular auditing work is also necessary for DCs to ensure that every component or device is properly placed and used, which is labor consuming as well.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.45 \linewidth]{pic1}
+	\caption{A typical data center (DC) (cisco.com).}
+\end{figure}
+
+To aid DC maintenance and audits, people in the industry have already developed some kinds of computer systems. For example, Data Center Infrastructure Management (DCIM) can monitor, check, control and manage the energy usage of IT devices in a DC \cite{xjl1}; Configuration Management Data Base (CMDB) contains all relevant information about the components of the information system and the relationships between those components \cite{xjl2}. Some more intelligent systems can even detect component failures and provide possible repairing strategies. Still, in many situations, we need human workers to fix the problem manually inside DCs, as well as to conduct on-site audits.
+
+\subsection{Problems and Needs}
+As mentioned in the previous section, we do have various computer systems to contain necessary information for on-site maintenance and auditing work. However, these systems are usually not integrated together, which means if we want to access different kinds of information (eg. data from environment sensors, power usage information, device models and parameters, etc.), we have to visit different systems to fetch the data, which could be a complex work. 
+
+Another problem is that on-site workers in DCs usually do not have user-friendly enough instructions and information access. Sometimes they have to face very tedious literal descriptions in manuals or documents, and sometimes they need to search information manually in different data systems. That could greatly reduce the efficiency of maintenance and audit work. Thus the two main problems for many current DC maintenance and audit work can be summarized as
+\begin{itemize}
+    \item Lack of integrated information system;
+    \item Lack of user-friendly instructions and information access.
+\end{itemize}
+
+\noindent 
+To solve the above two problems, what we need are
+\begin{itemize}
+    \item An integrated system that involves all the information together;
+
+    \item  A more user-friendly tool to aid and instruct on-site maintenance and audit work.
+\end{itemize}
+
+\noindent 
+With the above improvements, the efficiency of on-site maintenance and audit work can be greatly improved.
+
+\subsection{General Strategy}
+To realize the needs, we can divide our project into two parts: the back end part and the front end part. For the back end part, we can establish an integrated data system to contain and provide all necessary information of the data center. For the front end part, we need to develop a user interface to display the information in a vivid way. More details are given in the following sections.
+
+
+
+
+\subsubsection{Back End Implementation}
+\label{sec: flowgate}
+For the back end of the project, we already have different systems to contain different kinds of data, such as DCIM and CMDB mentioned previously. Also, VMware has developed a software system called \textit{Flowgate} \cite{xjl3} to integrate the existing systems together and provide convenient access to all types of data (Figure \ref{flowgate}). Thus we can use Flowgate as our back end database, and make use of API to fetch data from it.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.7 \linewidth]{pic2}
+	\caption{Flowgate: a system to integrate various kinds of data systems for data centers.}
+	\label{flowgate}
+\end{figure}
+
+\subsubsection{Front End Implementation}
+For the front-end application, we are going to use augmented reality, \textit{AR}, which is a combination of information generated by computers and real-world scenarios. The three basic hardware components of AR are sensors, processors and displays \cite{xjl4}, all of which could be contained in a smart phone. For software developers, there are some open source software development kits such as Google ARCore and ARKit. Almost all the AR toolkits support common operating systems like iOS and Android, so we can easily develop apps in these platforms. 
+
+An example of the usage of AR is shown in Figure \ref{google}, which is a function in Google Map. The App can label information onto real-world scenes to provide visual guide to its user.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.55 \linewidth]{pic6}
+	\caption{AR in Google Map.}
+	\label{google}
+\end{figure}
+
+If we use AR to aid DC maintenance and audit work, we can obtain information visually and easily, avoiding unnecessary visits to different data systems. Also, AR can provide instructions in a convenient and vivid way, which is more user-friendly for the on-site technicians.
+
+\subsection{Expected Outcome}
+The product of our project is expected to be an AR App which can obtain all kinds of information related to a specific data center from the back end database (Flowgate), and display necessary information and instructions in a real-time manner (using AR) to aid data center maintenance and audit work. More intuitively, the product could be similar to Figure \ref{cover}.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.55 \linewidth]{title}
+	\caption{An example of AR software used in data center \footnotemark.}
+	\label{cover}
+\end{figure}
+
+\footnotetext{www.youtube.com/watch?v=1Pe028PjQhs}
+
+Also, the App is expected to have quick reaction time, relatively low power consumption and high compatibility to different types or versions of operating systems. More details about design specifications can be found in section \ref{sec_es}.
+
+
+\section{Literature Reviews and Benchmarks}
+In order to have a better understanding of how to solve the problem, we have conducted several literature reviews on related technology. This can also help us meet customer requirements, and find out our novel solution on this project.
+
+\subsection{Literature Search Methods}
+\paragraph{Search by Keywords} Augmented Reality, Data center maintenance, Flowgate, Data Center Visualization, Collaborative AR, AR in Data Center
+\paragraph{Search on Platforms} Google Scholar, SJTU Digital Library, U-Mich Digital Library, IEEE Digital Library, Github
+
+\subsection{Competitive and Related Products}
+\subsubsection{Augmented Assembly using a Mobile Phone~\cite{arAssembly}}
+This is a mobile phone based augmented reality (AR) assembly system. It is based on a client-server architecture, where complex model information is stored on a PC, and a mobile phone with the camera is used as a client device to access this information. With this system, users are able to see an AR view that provides step by step guidance for a real world assembly task. 
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.5\textwidth]{fig/assembly_1.png}
+    \caption{An example of CAD model and AR view of a hydraulic tractor.}
+    \label{fig:assembly1}
+\end{figure}
+
+This system is made up of two parts: a PC server software and a visualization/controller client on a smart phone. The phone client software takes images of the real assembly site, and sends them to the PC server. After the PC server receives the image, it will compute the AR model that matches the image, and send it back to the phone. The user then sees the augmented views of real world assembly tasks on the phone. The transmission of data between PC and mobile phone is realized by WLAN or Bluetooth.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.5\textwidth]{fig/assembly_2.png}
+    \caption{Augmented assembly of a 3D puzzle on a mobile phone.}
+    \label{fig:assembly2}
+\end{figure}
+To be more illustrative and intuitive, the augmented view is provided as an animated image, so that the step by step guide for assembly can be provided.
+
+\paragraph{Advantages} This system does not need to use many computing resources for AR on mobile phones, as the computation part is performed on the PC server.
+
+\paragraph{Disadvantages}
+The data transmission time between the phone and PC server is long. The average time to send and receive an image is 19.13 seconds over Bluetooth and 3.44 seconds over WLAN. Also, this system does not involve database of real-time information, so it is hard to be implemented on database.
+
+
+\subsubsection{Mobile augmented reality in the data center~\cite{arIBM}}
+This is the product invented by IBM that can be used to help manage data base. It enables system administrators to easily identify various hardware assets in data center, and provides them with an additional tool to interact with those assets. Users scan QR code on the rack to fetch data from the Tivoli MEO server, which stores information of ID and location of each asset on the rack. AR on the phone marks the outline of each asset by showing a red frame of it.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.4\textwidth]{fig/ibm.png}
+    \caption{Visual overlay of data center assets on top of assets in an IBM iDataPlex rack.}
+    \label{fig:ibm}
+\end{figure}
+
+Aside from information of ID and location, there is also a ``freeze" button. Users are able to point the device at an area of interest and freeze the video capture of camera, so that they can check the device in a comfortable position. They do not need to hold the device up at an awkward angle while they are interacting with the application.
+
+\paragraph{Advantages} As users can freeze the camera capture, this product is user-friendly. Also, the AR visualizes the outline of each asset by red boxes.
+
+
+\paragraph{Disadvantages} There is limited information stored in Tivoli MEO server: only location, name of each machine and position where a new asset can be added. It does not check and use over physical information other than QR code, like signal lights.
+
+
+\section{Customer Requirements (CR) and Engineering Specifications (ES)}\label{sec_es}
+The benchmarks indicate that the basic requirement of our customers is to display real-time information of data center with AR, which could be divided into four detailed customer requirements. By conducting literature search and considering the constraints in reality, we further convert the requirements into engineering specifications.
+
+\subsection{Details of CR and ES}
+
+\subsubsection{Short Reaction Time and the Corresponding ES}
+\textbf{CR: Short Reaction Time}
+
+\textbf{ES: Object Localization Time, Barcode Identification Time, Database Query Time, AR Image Generation Time}
+        
+A research on user psychology shows that a user can get distracted in 1 second, so short reaction time is required in our project \cite{reactionTime}. The execution steps of our application include the localization of objects, barcode identification, database query, and the AR image generation. Therefore, we need to control the time of these tasks to fulfill the requirement of short reaction time. Based on literature search, our APP should be able to localize the barcode in 0.5s \cite{localization}, identify the barcode in less than 0.05s \cite{identification}, achieve an O(log(n)) complexity in the time of database query, which depends on the data size, and take less than 0.1s to generate the AR image \cite{generateAR}.
+
+\subsubsection{Information Correctness and the Corresponding ES}
+\textbf{CR: Information Correctness}
+
+\textbf{ES: Object Localization Accuracy, Data Retrieval Accuracy}
+
+Another important feature of our product is information correctness. In our application, the tasks related to achieving information are barcode localization and data retrieval. According to state-of-art technologies, we need to realize a 90\% accuracy on localizing the barcode \cite{localAccuarcy} and more than 99\% accuracy on retrieving data \cite{dataAccuarcy}.
+
+\subsubsection{Comfortable Display and the Corresponding ES}
+\textbf{CR: Comfortable Display}
+
+\textbf{ES: Smooth Display, Appropriate Temperature}
+
+User experience is also essential for our project, and thus we would like to ensure a comfortable display, which is achieved by keeping a smooth display and an appropriate temperature of the devices in our application.
+
+To realize a smooth display, we could set the frame rate above 15 frames per second \cite{smooth}. The temperature of the device can keep increasing when AR is on, and thus we need to control the sensible temperature below 40 $^\circ$C \cite{temperatureApple}\cite{temperatureGoogle}.
+
+\subsubsection{Portable Device and the Corresponding ES}
+\textbf{CR: Portable Device}
+
+\textbf{ES: Platform, Small Package Size}
+
+AR application can be loaded in portable devices like smart phones or pads. Nowadays, the operation system of most of the smart phones and pads on the market is either Andriod released by Google, or iOS released by Apple. Both Google and Apple launch AR toolkits. The toolkits are available on Android 7.0 or above and iOS 11.0 or above, which limits the platforms of the portable devices where our application could run \cite{ARkit}\cite{ARCore}. 
+
+Considering the storage capacity of portable devices, we also need to keep a small package size, with less than 110MB for Android and 940MB for iOS \cite{AppStore}\cite{GooglePlay}.
+
+\subsection{Quality Function Deployment}
+\label{sec: quality}
+Based on the customer requirements and engineering specifications described above, we can evaluate our benchmarks and develop our house of quality (HOQ), which is shown in Figure~\ref{fig:qfd}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[height=14cm]{fig/QFD.png}
+    \caption{House of Quality.}
+    \label{fig:qfd}
+\end{figure}
+
+\subsubsection{Customer Requirements and Weights}
+
+Our customers are companies that own data centers. By doing customer survey and studying our benchmarks, we conclude the customer requirements and their corresponding weights, and list them in Table 1, which is part of our HOQ. The weights range from 0 to 10, and a larger weight means a bigger importance. The most crucial requirement of our product is information correctness, since our product will be of no use if the information it provides is incorrect. The other three requirements are related to user experience. Since portable device is the easiest to be satisfied, it has the lowest weight.
+
+\begin{figure}[H]
+    \centering
+    \caption*{Table 1: Customer Requirements and Weights.}
+    \includegraphics[height=3cm]{fig/weights.png}
+\end{figure}
+
+\subsubsection{Benchmark Competitions against CR}
+The information correctness of both Mobile Augmented Assembly product and the IBM product is high, as the correctness of data is the most important factor to solve database maintenance problem. Mobile Augmented Assembly product is not portable, as it needs a nearby computer server. The animated way of AR display is good, but the reaction time is not short. IBM product only has one phone client, so it is portable. The AR display and reaction time is fair. See Table 2.
+
+\begin{figure}[H]
+    \centering
+    \caption*{Table 2: Benchmark Competitions against CR.}
+    \includegraphics[height=6cm]{fig/benchmarkCR.png}
+\end{figure}
+
+\subsubsection{Generate ES and Cross Correlate ES}
+
+The details of generating ES from CR are described in Section 4.1. Their cross correlations are shown in Figure~\ref{fig:ES}. A "++" symbol shows there is a strong positive correlation between the two engineering specifications, while a "--" symbol shows there is a strong negative correlation; a "+" or "-" symbol means there is a weak correlation. 
+
+The object localization correctness has weak correlations with some specifications. One is object localization time. If we want to achieve a larger localization accuracy, then the time needed to localize it will be increased. Besides, a larger localization accuracy means we need a better localization model, which can result to a larger software package size. The device temperature also has weak correlations with some several specifications. If frame rate is increased or AR image generation time is reduced, then the device temperature will probably increase. The only strong correlation exists between AR image generation time and the frame rate; if AR image generation time is reduced, then the frame rate could be increased to give user a smoother display.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[height=8cm]{fig/ES.png}
+    \caption{Cross Correlation of ES.}
+    \label{fig:ES}
+\end{figure}
+
+\subsubsection{Correlate CR to ES}
+
+The correlations between CR and ES are shown in Table 3. 
+Correlation values include "9", "3" and "1", where "9" means strongly related, "3" means somewhat related, "1" means weakly related and empty means unrelated. The requirement of short reaction time is related to the time of a series of operations in our application as well as the frame rate. Among these operations, object localization and database cost more time than the others, which have a larger effect on short reaction time. As for information correctness, the most important step is to fetch the correct information from database. Comfortable display requires a high frame rate. The time for AR image generation and the temperature of the device can also influence the display. Finally, a small software package size is needed for the portable device requirement.
+
+\begin{figure}[H]
+    \centering
+    \caption*{Table 3: Correlation between CR and ES.}
+    \includegraphics[height=8cm]{fig/CRES.png}
+\end{figure}
+
+\subsubsection{Importance Rating}
+
+According to the correlations between CR and ES, we calculate the absolute importance as well as the relative importance of our engineering specifications, and then rank them. As shown in Table 4, the critical-to-quality ES of our product are database query, frame rate and size of software package.
+
+\begin{figure}[H]
+    \centering
+    \caption*{Table 4: Importance Rating.}
+    \includegraphics[height=6cm]{fig/ranking.png}
+\end{figure}
+
+\subsubsection{Benchmark Competitions Against ES}
+For both Mobile Augmented Assembly and IBM products, the methods they use are different from our ES. In this way, it is hard to do a direct comparison on object location correctness and time, bar code identification and data query. AR image generation, frame rate, device temperature and the size of software packages are not provided in the literature.
+
+\subsubsection{Set Targets for ES}
+
+Table 5 shows the target values and the units for ES. The target values are set mainly according to state-of-the-art technologies and the details of setting the target values for ES are presented in Section 4.1.
+
+\begin{figure}[H]
+    \centering
+    \caption*{Table 5: Targets for ES.}
+    \includegraphics[height=6cm]{fig/target.png}
+    \label{fig:target}
+\end{figure}
+
+\subsection{Summary of Engineering Specifications}
+
+\setcounter{table}{5}
+\begin{table}[H]
+    \centering
+    \caption{Summary of Engineering Specifications.}
+    \begin{tabular}{|c|c|c|}
+        \hline
+        \textbf{Engineering Specifications} & \textbf{Measurement Units} & \textbf{Target Value} \\
+        \hline
+        Object Localization Correctness & \%	& 90 \\
+        \hline
+        Data Retrieval Accuracy & \% & 99 \\
+        \hline
+        Object Localization Time & s & 0.5\\
+        \hline
+        Barcode Identification Time & s & 0.5 \\
+        \hline
+        Database Query Time & s & 1\\
+        \hline
+        AR Image Generation Time & s & 0.1 \\
+        \hline
+        Frame Rate & frames/s & 15	\\
+        \hline
+        Device Temperature in Operation & $^\circ$C &  40	\\
+        \hline
+        Size of Software Package & MB & 110\\
+        \hline
+    \end{tabular} \label{tab:es}
+\end{table}
+
+
+
+
+
+\section{Concept Generation}
+Based on customer requirements and engineering specifications, we think about how to implement our project accordingly. We first come up with the concept flowchart of our project. Our application should be able to work as shown in Fig:~\ref{concept flowchart}.
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.7 \linewidth]{fig/ConceptFlow.png}
+	\caption{Concept Generation Flowchart.}
+	\label{concept flowchart}
+\end{figure}
+
+First, at the beginning of a session, the app need to detect a barcode in \textbf{Barcode Localization \& Identification} part, which is attached on the device a user wants to check. The app will try to detect barcode from one picture caught by the mobile camera. This picture with barcode is then the input for barcode localization and identification part. In this part, we will use some APIs to detect the location of barcode, and decode the information of the barcode. The output will be a string containing the asset ID information, which can be later used as a token to fetch detailed data of the device from Flowgate server.
+
+Then the decoded string will be used as the input of \textbf{Data Retrieval} part. For dthis part, we use the decoded asset ID as the token to fetch data from Flowgate. On Flowgate, we have saved various data for different devices. For example, for each asset token we can get the name of the device, which rack this device belongs to, and the location of this device on that rack, etc. Those data will then be send to the UI interface part, as we need to present such detailed data of the device of interest to the user.
+
+The last step to complete this session is to show the information users want to see by good \textbf{User Interface}. We would like to use AR to draw a red box on the device which the user is checking, and display detailed information in text view. We need to consider how to show such text view. After we have completed this part, users can start to maintain the device with the help from our app, which shows some detailed information of the device with AR animation.
+
+
+In order to generate concepts on application implementation, we break the whole structure of our project into three sub-functions, and use the \textbf{morphology analysis} method to help generate various concepts for each sub-function. As is shown in Fig:~\ref{morph}, each part has several concepts generated by brainstorming. For Barcode Detect part, we have considered different APIs, ZXing, ML Kit and Scandit. For Data Retrieval part, we considered to directly retrieve data from Flowgate each time or use a cache to store information. For the User Interface part, we come up with two ways of showing text view, one by 3D AR display, and another by 2D text page display. The detailed brainstorming process will be shown in the next part. After that, we will pick up final concept by concept selection.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.7 \linewidth]{fig/morphology.png}
+	\caption{Morphological analysis diagram.}
+	\label{morph}
+\end{figure}
+
+
+
+\subsection{Barcode Localization \& Identification}
+Barcode Localization \& Identification is the fundamental step for us to realize the function of our app. Due to time limit, we decided not to write barcode detection by ourselves, but to use some Software Development Kit (SDK) as an API. Each time we need to detect and decode barcode, we call this API to return the decoded information from the barcode we detected. After research on the internet, we focus on three types of SDK that realize barcode detection and decoding function.
+
+The first one is \textbf{ZXing}. This is an open source SDK developed in Java language, found on Github. It can support multiple types of barcode decoding, and can detect and decode one barcode at one time, basicly. This is commonly used by android developers to realize the function of barcode identification in apps. 
+
+The second SDK we found applicable is \textbf{ML Kit}. This is an open source SDK developed by Google. Barcode detection is one of the function ML Kit can provide. Google has a sound and thorough documentation of guidance for this SDK. It can support various types of barcode decoding by specifications, and can detect and decode more than barcodes in one picture. 
+
+The third SDK for bacode identification is \textbf{Scandit}. This is a closed source SDK, which aims at high accuracy of barcode detection under various environment. It can also detect and decode more than barcodes at the same time. To use this SDK, you need to register on its company's website and contact them.
+
+\subsection{Data Retrieval}
+
+Data retrieval is an important part in our app. The two concepts related data retrieval is shown in Fig~\ref{fig:direct_retrieval} and Fig~\ref{fig:cache}. One concept is to retrieve data directly every time a bar code is scanned. In this case, we directly send its ID to the remote database and obtain its information through network transmission. Another concept is generated from the concern of short reaction time. Usually, it takes a considerable amount of time to transmit data through network, since it should establish the connection first and then transmit the data one packet by one packet. Thus, we came up with an idea, which utilizes cache and applies least recently used strategy. Cache is commonly used in today's computer, for example, memory management in operating system and data accessed in cpu. If we use cache to store the recently scanned devices, next time when the same device is scanned, we can directly retrieve the information from cache. In this case, when a query comes, it first checks whether the cache contains the corresponding information and only reaches remote database when miss.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[height=3cm]{fig/data_re_dir.png}
+    \caption{Direct data retrieval.}
+    \label{fig:direct_retrieval}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[height=5cm]{fig/data_re_cache.png}
+    \caption{Retrieval with cache.}
+    \label{fig:cache}
+\end{figure}
+
+\subsection{User Interface}
+About User interface, our concern is how to display data. The concepts are generated from the customer requirements of good user experience and the existing products we saw during the literature survey. 
+
+The first concept is to place information based on 3-D coordinate in reality world(Fig \ref{fig:3d}). This concept is mainly generated from the AR products already existing on the markets, namely, AR products will normally use this way. However, we also thought of a display method which may be easier to read: to always place information on the screen based on view controller 2-D coordinate as a normal app(Fig \ref{fig:2d}). 
+
+In either of the two ways, we will mark the cabinet and servers with red box based on the coordinates in reality world.
+\begin{figure}[H]
+    \centering
+    \includegraphics[scale=0.7]{fig/2d.png}
+    \caption{Put information on the screen based on view controller 2-D coordinate.}
+    \label{fig:2d}
+\end{figure}
+\begin{figure}[H]
+    \centering
+    \includegraphics[scale=0.7]{fig/3d.png}
+    \caption{Place information based on 3-D coordinate in reality world.}
+    \label{fig:3d}
+\end{figure}
+
+
+
+
+
+\section{Concept Selection}
+\subsection{Barcode Localization \& Identification}
+
+To evaluate the three concepts related to barcode detection and decoding, we formulate the design criteria used to evaluate them and draw a pair-wise comparison matrix in Table 7 to decide the weight factors of each criteria. According to the comparison matrix, information correctness turns out to be the most important criteria, which is reasonable because the correctness of data we fetch from Flowgate must be ensured, so we first need to decode the correct barcode in correct way. This will meet our ES of high accuracy on barcode identification.
+
+\begin{figure}[H]
+    \centering
+    \caption*{Table 7: Pair-wise comparison matrix for barcode localization \& identification.}
+    \includegraphics[width=\textwidth]{fig/barcode_weight.png}
+\end{figure}
+
+
+All three concepts have advantages and disadvantages. For ZXing SDK, it is good as it is for free and open-source. It mainly has two disadvantages, first is the lack of documentation. Since this not is developed by a company, the developers team do not provide enough guidance for it. We need more time to learn how to integrate ZXing into our app. Also, ZXing SDK is not well encapsulated, so it may cause inconvenience when we integrate it into our app. The second disadvantage is that the time for ZXing to detect and decode a barcode is slow, and the accuracy to decode a barcode is also low.   
+
+
+For ML Kit, this is an open-source SDK developed by Google. It has a thorough and detailed documentation for developers, and is already well-functioning for barcode detection and decoding. This makes the implementation much easier. Although ML Kit may be a little slower than Scandit on the time of barcode identification, it is still acceptable as it has a moderate time that is in accordance with our ES on reaction time. 
+
+Last, Scandit SDK performs the best in both time and accuracy for barcode identification. However, this is a close-source SDK, so we need to spend money to buy it. We also need to keep in contact with the company each time we need some modifications of barcode identification function, since we cannot modify the codes by ourselves.
+
+
+Table 8 and the final scoring result reflects that using a ML Kit SDK is more suitable.
+
+\begin{figure}[H]
+    \centering
+    \caption*{Table 8: Weighted decision matrix for barcode localization \& identification.}
+    \includegraphics[width=\textwidth]{fig/barcode_m.png}
+\end{figure}
+
+\subsection{Data Retrieval}
+
+To evaluate the two concepts related to data retrieval, we first formulate the criteria used to evaluate them and draw a pair-wise comparison matrix in Table 9 to decide the weights of criteria. According to the comparison matrix, time requirement and space requirement turn out to be the most important criteria, which is reasonable since the reaction time will influence the CR of user experience and the space usage will influence the ES of our software package size.
+
+\begin{figure}[H]
+    \centering
+    \caption*{Table 9: Pair-wise comparison matrix for data retrieval.}
+    \includegraphics[height=7cm]{fig/data_retrieval_weight.png}
+\end{figure}
+
+
+Although using cache may help to save the time on network transmission, it has several drawbacks. First, it needs an cache to store the visited information, which costs memory space. Second, it requires extra implementation of maintaining and updating the cache based on the direct retrieval, so it is harder to implement. Third, although it can reduce the retrieval time theoretically, the actual time depends on the hit rate of the cache, which means when the requested device information is not in the cache, it needs extra time to traverse the whole cache. However, maintaining a cache can support the function of history query, and thus the user can check which devices he/she has maintained. The decision matrix is shown in Table 10 and the final scoring result reflects that using a cache is more suitable.
+
+\begin{figure}[H]
+    \centering
+    \caption*{Table 10: Weighted decision matrix for data retrieval.}
+    \includegraphics[height=7cm]{fig/data_retrieval_m.png}
+\end{figure}
+
+\subsection{User Interface}
+\begin{figure}[H]
+    \centering
+    \caption*{Table 11: Pair-wise comparison matrix for user interface.}
+    \includegraphics[height=7cm]{pwtable.png}
+\end{figure}
+\begin{figure}[H]
+    \centering
+    \caption*{Table 12: Weighted decision matrix for user interface.}
+    \includegraphics[height=7cm]{fig/table.png}
+\end{figure}
+We compare our two solutions based on four criteria: whether the shown data is easy to read, whether it is easy to select to read the data of a certain bar code, whether it is easy to go to and get access to the data of the bar code and whether it is easy to be implemented. As shown in Table 11, we think whether it is easy to select certain data is most important. And others take almost the same weight.
+
+We then compare our solutions based on the criteria. The first solution -- putting information based on 3-D coordinate -- has two shortcomings. First, imagine the computer screen is our server and the contents on the screen are our data. If I want to read the data clearly, I have to be in front of the data and keep an appropriate angle. This is the same situation as in reality. That's why we think reading data and going to data is less convenient. 
+
+However, putting information based on 2-D coordinate also has two shortcomings. Imagine we have several bar codes in the same scene. Which information should we display? This is difficult to be selected by the program and inconvenient to be selected by the user. Thinking of the above, it makes the program difficult to be implemented.
+
+The decision matrix is shown in Table 12. After comparison, we decide to use the first solution. Our challenge is still how to make the data easy to read.
+
+
+
+% hly
+\section{Final Design}
+\subsection{Overview}
+As is stated above, the chosen concept in our project is to use ML Kit for barcode localization and identification, cache for data retrieval, and 3-D display for user interface, which is shown in Figure \ref{fig:overview}. In our design, the user would first scan a barcode, and using ML Kit for barcode localization and identification, our app would be able to decode the barcode. Then the app will use the decoded information to fetch data from Flowgate, where cache is used to improve the reaction time. Finally, the app will place the obtained information based on 3-D coordinate in reality world.
+\begin{figure}[H]
+    \centering
+    \includegraphics[height=6cm]{fig/overview.jpg}
+    \caption{An overview of the chosen concept.}
+    \label{fig:overview}
+\end{figure}
+
+\subsection{Engineering Design Analysis}
+Our major design lies on how to optimize user experience so that the staff in data center can utilize our app easily for maintenance. One important perspective is the steps needed to be completed by the user in order to get device information. User experience is also very important, so we need to set specific parameters to achieve a comfortable display of information.
+
+\subsubsection{Steps}
+A general overview of the steps is that the user needs to scan a barcode and then read the information of the corresponding device from AR interface. When considering the final design, a lot of details need to be specified. For example, can the user scan multiple bar codes with all the information displayed on the same screen? Is it better if the app can support rack identification?
+
+After consulting our sponsor, the final steps that needs user to complete are:
+\begin{itemize}
+\setlength{\itemsep}{0pt}
+\setlength{\parsep}{0pt}
+\setlength{\parskip}{0pt}
+\setlength{\partopsep}{0pt}
+\setlength{\topsep}{0pt}
+    \item [1. ] Scan one bar code
+    \item [2. ] Step back to catch the whole view of the rack
+    \item [3. ] Step closer to read the information displayed by the corresponding device
+\end{itemize}
+
+After step 1, our app will retrieve information from the back-end server, which contains the location information of the device. After step 2, we get the location of the whole rack and then we can mark the specific device in this rack according to its location information. Next, we can display all its information by this device so that the user can check and maintain the device. After the user finishing maintaining this device, he/she can start a new session to scan the next bar code.
+
+As shown above, our app can scan only one bar code. The idea of scanning multiple bar codes seems fascinating, but it has a big drawback. If multiple bar codes are required, then our app needs to keep scanning, which could lead to a high temperature. If we follow the steps above, the app is able to stop scanning when user starts to check device information and maintain the device, which can greatly reduce the CPU usage. Also, displaying information of several device at a time will let it looks messy and hard to check which information corresponds to which device. Besides, scanning the rack can help the localization of the device, and thus the user can have a clear view of both the device and its information.
+
+
+
+\subsubsection{User Experience}
+As indicated in the book~\cite{xjl4}, if the frame rate is too low, the scene in AR can not be displayed smoothly, which will lead to a bad user experience. As suggested, the frame rate needs to be above 15 frames per second. One obstacle in setting a high frame rate is that it needs to keep refreshing the scene displayed on your phone and this may lead to a counter reaction of high temperature. Our final design sets the frame rate as 60 frames per second, which is a common frame rate in today's AR application. This frame rate guarantees both smooth display and acceptable phone temperature.
+
+
+\subsection{Design Description}
+The detailed flowchart of the design is shown in Figure \ref{fig:detail_chart}. In our design, when a user wants to maintain a device in Figure \ref{fig:detail_chart}, he scans the barcode, and our device starts to detect and decode the barcode. Then the app will use the decoded information to fetch data from Flowgate. Next, the user steps back to catch the whole view of the rack A. Our app then recognizes the rack and devices, and marks them by those red blocks in AR interface. The location information is provided in data from Flowgate. Then the user steps closer. Our app can show the detailed information of the device, and then the user can start maintaining the device with those information. After the user finishes, he can choose to maintain another device by starting a new session. Our app will be refreshed, and the user can scan another barcode now. 
+\begin{figure}[H]
+    \centering
+    \includegraphics[height=6cm]{fig/Detailed flowchart.png}
+    \caption{Detailed flowchart of the system.}
+    \label{fig:detail_chart}
+\end{figure}
+To make the design work, we divide it into several tasks based on subfunctions, and implement these tasks through collaborative programming. We first install the Flowgate sever. For Andriod, we use ML Kit for barcode scanning, and ARCore and Sceneform packages to enable the AR environment and image recognition. For iOS, only ARKit is needed for all these tasks. In this process, we take the non-ideal cases into consideration. For instance, for the case that the barcode information is missing or the barcode is damaged, the program will display nothing on the card and show an error message.
+
+After implementing the subfunctions, we integrate them to build a complete AR app. The app will work as long as the user install it on their mobile phones, and give the required camera permission to it. As the app is an integration of the desired subfunctions, users would be able to conveniently obtain the necessary information that could help them in maintenance and audits in data centers. All the parts needed in the process are just our laptops, mobile phones, server machines and data center devices borrowed from our institute, which have no cost. Please refer to the Appendix part for detailed bills of materials.
+
+\subsection{UI Design Details}
+The previous part describes how our app can function well. In this part, the user interface design to ensure good user experience will be explained in details.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.5\textwidth]{fig/Engineering_Drawing.jpg}
+    \caption{A drawing of the user interface view design.}
+    \label{fig:drawing}
+\end{figure}
+Fig:~\ref{fig:drawing} is the whole view object constructed in the app. The view object will have the size of the whole mobile device screen. The gray drawing of racks and devices are what the mobile phone camera will catch and display on the view object. Each major and minor components in the view are labeled from 1 to 8. The explanation for each component is shown below:
+\begin{itemize}
+    \item A text view object on the top-left corner is labeled as part 1. This text view object will display the current status of app. For example, when the app is opened for the first time, the text view object will show ``Initializing"; when the app is ready to scan barcodes, the text view object will show ``Look around to detect a server"; when the app detect the rack, the text view object will show ``Detected a cabinet", etc. 
+    \item The button view object labeled as 2 is a reset button. This button is places at the top-right corner. If a user clicks this button, then the current AR session will be reinitialized. 
+    \item The button view placed after view object 2 is the pause button, labeled as 3. After a user clicks ``Pause", the AR session will be freezed so that the image on the screen will be locked, and the button will show ``Continue". After the user presses the button again, the AR session will recover from the last state and function as before.
+    \item The view object with label 4 is a plane view with some texts on it. This view object mainly displays information of the current device the user wants to check. The height and width of the plane object is set to be 18cm and 25cm respectively. The detailed static information of the device like the device ID and name is shown on this plane.
+    \item The view object with label 5 is a plane view with some texts and a button on it. This view object mainly displays information of the current rack. The height and width of this object is set to be 18cm and 25cm respectively. The detailed static information of the rack like the rack ID and name is shown on the top part of the plane.
+    \item There is a button object labeled as 6 on object 5. This is a button used to trigger the display of dynamic information of current rack. After the user touches this button, the plane object in part 5 will be stretched downwards, so that the temperature plot of the rack in recent minutes can be shown on the newly added part of plane.
+    \item The red blocks that outlined the structure of the rack are labeled as 7. We divide the rack so that every three layers we will draw a red block. Also, there are red lines connects the red blocks with object 4 and 5.
+    \item Part 8 is the text objects showing the row number range of the rack. Here we display one text object showing row numbers for every three rows.
+\end{itemize}
+We further design the app icon. The idea is to combine AR and data center maintenance, so we design the ``AR" text to be placed between two server devices, as is shown in Fig.~\ref{fig:icon}.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width = 0.4\textwidth]{fig/ARdc_icon.png} 
+    \caption{Designed icon for our app on both iOS and Android platform.}
+    \label{fig:icon}
+\end{figure}
+
+\subsection{The Prototype and Final Design}
+For both prototype in Design Review 3 and the final prototype in Final Design, the basic work flows of two versions of app are the same. The differences lie in user interface part and extra small functions to improve user experience.
+
+Fig.~\ref{fig:prot} shows the user interface in prototype in Design Review 3. We can see that here we only display the information of device. The app only has the status information at the left-right corner. Therefore, our prototype at Design Review 3 can satisfy our requirement to first decode the barcode, and then fetch basic information of device one wants to check and display it correctly. Our prototype can also detect the rack and draw red blocks on the rack. Then we will show AR image with acceptable time interval. The only requirement we did not validate is having good user experience. Hence, we made some changes on user interface.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[height=7.5cm]{fig/prototype.png}
+    \caption{The user interface of prototype in Design Review 3.}
+    \label{fig:prot}
+\end{figure}
+
+Fig.~\ref{fig:finaldesign} shows the user interface in final prototype. We can see that here we not only display the information of device, but also display the information of rack. The app now has one reset button and one pause button at the top-right corner. The reset button can be used to The appearance of plane objects to show information is also changed. We also add numbers to show the rows on the rack. We improve the user interface to help users on maintenance task.
+At this stage, our prototype is expected to meet all our final design. It is expected to implement the functions required by customers at high performance level. As for more detailed changes after prototype in Design Review 3, please refer to section.~\ref{sec:ECN}, Engineering Changes Notice.
+\begin{figure}[H]
+    \centering
+    \includegraphics[height=7.5cm]{fig/final_design.png}
+    \caption{The user interface of final prototype.}
+    \label{fig:finaldesign}
+\end{figure}    
+
+In order to validate whether our prototype is accurate at representing our final design, we have mainly designed four types of test cases: 
+\begin{enumerate}
+    \item repeated trials to calculate success rate of fetched data;
+    \item repeated trials to calculate average time of decoding barcodes and showing AR images;
+    \item sampling from continuous measurements to find the mean value of the temperature and fps of mobile devices;
+    \item direct reading of the package size of the app
+\end{enumerate}
+
+As for details of our validation tests, please refer to section.~\ref{sec: validation}, Test Results.
+
+
+% zsy
+\section{Implementation Plan}\label{implement}
+\subsection{Materials}
+For the back-end part of our project, we use Flowgate as our back-end system to contain all data center information. The Flowgate system needs to be installed on an ESXi system, and requires at least 4 vCPUs, 8GB of memory, and 60GB of disk space. In addition, we need Python to manage asset data in Flowgate via API.
+
+For the front-end part of our project, since we are implementing our AR app in both Android and iOS platforms, we need to use both Java and Swift for app development. The coding can be done in Android Studio and Xcode respectively. To enable AR, bar code scanning, and image recognition, we can use only ARKit for iOS, since it contains all necessary packages and libraries. For Android, we use the ARCore and Sceneform packages for AR development and image recognition, and use the ML Kit package for bar code scanning.
+
+Regarding hardware devices and equipment, we need an Android smart phone(or pad) and an iOS smart phone(or iPad)  for app development; a server machine to install Flowgate system; and a rack and several physical devices for testing and demonstration purposes.
+
+To summarize, the required materials are listed as follows:
+
+\begin{itemize}
+    \item[1.] Programming languages:
+    \begin{itemize}
+        \item[a.] Java
+        \item[b.] Swift5
+        \item[c.] Python
+    \end{itemize}
+    
+    \item[2.] Software and systems:
+    \begin{itemize}
+        \item[a.] Flowgate
+        \item[b.] ESXi
+        \item[c.] Android Studio
+        \item[d.] Xcode
+    \end{itemize}
+    
+    \item[3.] Packages and libraries:
+    \begin{itemize}
+        \item[a.] ARKit
+        \item[b.] ARCore
+        \item[c.] Sceneform
+        \item[d.] ML Kit
+    \end{itemize}
+    
+	\item[4.] Hardware devices and equipment:
+	\begin{itemize}
+        \item[a.] A sever machine
+        \item[b.] An Android smart phone
+        \item[c.] An iOS smart phone
+        \item[d.] A rack
+        \item[e.] 2 - 3 physical data center devices
+    \end{itemize}
+    
+    
+\end{itemize}
+
+
+
+
+\subsection{Implementation Process}
+The implementation of our project is mainly divided into 7 steps, as shown in the flow chart in figure \ref{xjl-dr3-1}. Details about the process are listed as follows:
+
+
+
+\begin{figure}[h]
+	\centering
+	\includegraphics[width=0.65 \linewidth]{flow.jpg}
+	\caption{Implementation process.}
+	\label{xjl-dr3-1}
+\end{figure}
+
+\begin{itemize}
+\item Step 1: The first step is to install and configure the backend server. We have installed Flowgate in the ESXi system of our server, and have created information sets for data center assets. Sensors and servers are also mapped together to ease information retrieval.
+
+\item Step 2: The second step is to realize subfunctions of front-end App separately, including data retrieval, bar code scanning, and AR.
+
+\textbf{Before coding}, we need to install the platforms (IDEs) necessary for coding. For Android, we use Android Studio and for iOS, we use Xcode. Notice that considering the compatibility, we need to always update Xcode to the latest version. For instance, Xcode before 12.2 does not contain SDKs for iOS 14.2 \cite{zsy1}.
+
+\textbf{Data retrieval} is realized by Http requests. In our project, we hard-coded username and password in our apps. At the beginning of our App, we need to first use the username and password to bearer tokens for authentication. With the valid bearer token, we can visit the server database. The flowgate database provides us some useful APIs like "getAssetByID" or "getAssetByName", which will return plain json of the data. We will use these two in our project. So, we need to implement these two with Java and Swift. 
+
+\textbf{AR implementation} is different between Android and iOS. For Android, we use ARCore and Sceneform to implement the AR test programs. For iOS, we use ARKit and SceneKit to implement AR. In a test program for AR, we managed to find a plane in the environment and place a text box on it, as shown in figure \ref{xjl-dr3-2}.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.25 \linewidth]{xjl-dr3-2}
+	\caption{Test program for AR.}
+	\label{xjl-dr3-2}
+\end{figure}
+
+\textbf{Scanning bar code} is a little bit tricky in Adroid. Since Android itself does not contain any bar code detection packages, we tried a lot of open source bar code detection services and decided to use \textit{ML Kit} for Android. For iOS, we can use the \textit{Vision} package with the \textit{VNDetectBarcodesRequest} class in it.
+
+\item Step 3: 
+
+The third step is to integrate AR with bar code scanning. In this step, we have implemented an app to scan any bar code and then place the readings(bar code content) onto a 3D plane in AR (figure \ref{xjl-dr3-3}). 
+
+Notice that for either Android or iOS, we need to pass every frame to either \textit{ML Kit} or \textit{VNDetectBarcodesRequest} to check whether there is bar code. Since detecting bar codes take time and CPU, we cannot have too high frequency to do that. Our apps with 30 frames per second can handle the functions without stuck. 
+
+To put a plane in reality world, we will do a hit test. It looks for "real-world feature points detected by the AR session's processing of the camera image. A 2D point in the view's coordinate system can refer to any point along a 3D line that starts at the device camera and extends in a direction determined by the device orientation and camera projection. This method searches along that line, returning all objects that intersect it in order of distance from the camera."\cite{zsy2} according to Swift5 documentation. Both iOS and Android have such methods.
+
+\begin{figure}[H]
+	\centering
+	{\includegraphics[width=0.2 \linewidth]{xjl-dr3-3a}}
+	\hspace{2cm} %\qquad
+	{\includegraphics[width=0.2 \linewidth]{xjl-dr3-3b}}
+	\caption{Integrate AR with bar code scanning. In the picture, yellow points are feature points for debug use. The bottom shows we are using 30 frames per second.}
+	\label{xjl-dr3-3}
+\end{figure}
+
+
+\item Step 4: Step 4 is to combine step 3 with data retrieval. Bar code contents contain the ID of a server. We use "getAssetByID" API to fetch the information of the server. The backend data obtained using the bar code is displayed onto a 3D window (figure \ref{xjl-dr3-4}). Asynchronous Http request mechanism is applied to ensure that network problem will not influence the operation of the main AR activity.
+
+\begin{figure}[H]
+	\centering
+	{\includegraphics[width=0.2 \linewidth]{xjl-dr3-4a}}
+	\hspace{2cm} %\qquad
+	{\includegraphics[width=0.2 \linewidth]{xjl-dr3-4b}}
+	\caption{Display the device information onto a 3D window, and mark the device using a red rectangle.}
+	\label{xjl-dr3-4}
+\end{figure}
+
+\item Step 5: We realized recognition of racks in data center, and display their corresponding information onto the AR interface, as shown in Figure \ref{fig:view}. In Android, we use the \texttt{AugmentedImage} library in Sceneform to realize image recognition. An image of the device is added to the database, so that the real device can be detected by the app using camera. The iOS version is done similarly. We set the configuration or AR session to have image detection. And the reference images are hard-coded. Notice that besides giving the reference images, we also need to give the real size of the rack including the height and width. After we detected the rack, we draw a red square to mark the rack. In iOS, the red square uses a metal file to draw its surface. This metal file is 
+referenced from the \textit{ScanningAndDetecting3DObjects}\cite{zsy3} from Apple documentation. In Android, we directly draw four lines to draw the box. We also hard-coded the number of units of a rack, so that we can mark the units. In our project, we marked every three units with their numbers and one red line. 
+\begin{figure}
+    \centering
+    \includegraphics[height=7.5cm]{view.png}
+    \caption{We use red boxes to mark the rack and also mark the unit numbers. We also show the information of servers and racks.}
+    \label{fig:view}
+\end{figure}
+
+\item Step 6: We improved the user experience (UX) by easing the work flow and making better user interface. We save the first bar code and its anchor but do not add it to the AR scence. We fetch the information from online so that we can get the name of rack that it is on. And we use the "getAssetByName" API to fetch information of the rack. But we will show the status of "detected bar code". This status window is referenced from \textit{ARKitImageDetection}\cite{zsy4} sample in Apple documentation. After we an image Anchor is added, which means we have successfully detected the rack, we will stop the image detection to save our CPU, and show the rack's red squares, the rack's information and the initial server information.
+
+We improved the algorithms by reducing sampling rate (for bar code scanning) to make the operation smoother. We also added a button to enable scene freezing and session pausing to reduce power consumption, as shown in Figure \ref{fig:pauseButton}. Pause button is placed on the right top corner of the user interface as shown in Figure \ref{fig:view}. Scene freezing also allows users to read the information without always holding the ipad/iphone in front of the information, which makes it more user-friendly.
+\begin{figure}[H]
+    \centering
+    \includegraphics[height=5.3cm]{pauseButton.png}
+    \caption{In a) and b), the scene on iPad is not change although the position of iPad has changed. This is because the user has tapped the "pause button".}
+    \label{fig:pauseButton}
+\end{figure}
+
+We also added a button to show the temperature curve,as shown in Figure \ref{fig:tempPlot}, which is a dynamic data stored in database. In our project, we do not have the real data, we can only use python to simulate some data. We used API (implemented by Python) to push the data on Flowgate Server.
+\begin{figure}[H]
+    \centering
+    \includegraphics[height=6.5cm]{tempButton.png}
+    \caption{a) shows the scene before pressing button "Show Temperature Plots", b) shows the scene after pressing button. After pressing button, we can see a temperature plot.}
+    \label{fig:tempPlot}
+\end{figure}
+
+
+\end{itemize}
+
+
+
+
+\subsection{Budget}
+To implement our project, we use our own smart phones, and have borrowed a rack, several host machines, and a server with ESXi installed from our institute. All other software is either free or open-source. Thus currently we do not need to spend any budget for our project.
+
+
+\section{Test Results}\label{sec: validation}
+\subsection{Design of Experiments}
+To validate the functionality of our design, we conducted experiments in the data center in Longbin Building, which contains enough racks and servers. The detailed validation methods for all the Engineering Specifications can be divided into 4 types:
+\begin{itemize}
+    \item[a.] Repeated trials to calculate success rate:
+    
+    For ``Object Localization Correctness" and ``Data Retrieval Accuracy", we conducted 50 repeated trials to localize a device and retrieve information for a device respectively. The equipment that we used was just our mobile devices on both Andriod and iOS platforms: Huawei P20 Pro and iPad Air 3, and the racks in the data center in Longbin Building. 
+    
+    The testing procedure was:
+    \begin{enumerate}
+        \item Installed datA centeR, the app that we have developed on the testing mobile device, and opened the app.
+        \item Scanned the barcode of a device on a rack.
+        \item Catched the whole view of the rack.
+        \item Checked whether the information was displayed correctly, or the racks were marked properly, and recorded the result.
+        \item Repeated step 2-4 for 50 times.
+        \item Counted the number of failures in these trials to calculate the success rate for object localization and data retrieval.
+    \end{enumerate}
+    
+    The results, the success rate for object localization and data retrieval, were compared to the expected results shown in Table \ref{tab:es}, which indicated that the success rate for object localization should be higher than $90\%$ and the success rate for data retrieval should be higher than $99\%$.
+    
+    \item[b.] Repeated trials to calculate average time:
+    
+    For ``Object Localization Time", ``Barcode Identification Time", ``Database Query Time", and ``AR Image Generation Time", we conducted 50 repeated trials of object localization, bar code identification, database query and AR image generation respectively. The total time for each of the operation was measured and written to the log of our program. Then the average time for each operation could be found simply by 
+    \begin{equation}
+    \text{average time} = \frac{\text{total time}}{50}.\label{eq:aver}
+    \end{equation}
+    
+    The equipment that we used was still our mobile devices on both Andriod and iOS platforms: Huawei P20 Pro and iPad Air 3, and the racks in the data center in Longbin Building. The testing procedure was:
+    \begin{enumerate}
+        \item Added the code to print the time in log in our program before and after the process of object localization, bar code identification, database query and AR image generation respectively.
+        \item Installed datA centeR, the app that we have developed on the testing mobile device, and opened the app.
+        \item Scanned the barcode of a device on a rack.
+        \item Catched the whole view of the rack.
+        \item Calculated the difference between the starting time and ending time of the process, and recorded the result.
+        \item Repeated step 3 to 5 for 50 times.
+        \item Calculated the average time using Eq. \ref{eq:aver}.
+    \end{enumerate}
+    
+    The average time was considered as the testing result, and was compared to the expected result shown in Table \ref{tab:es}, which indicated that the average time for object localization should be smaller than 0.5 s, the average time for bar code identification should be smaller than 0.5 s, the average time for database query should be smaller than 1 s, and the average time for AR image generation should be smaller than 0.1 s.
+    
+    \item[c.] Sampling from continuous measurements to find the mean value:
+    
+	For ``Frame Rate" and ``Device Temperature in Operation", our IDE could provide us with continuous measurements of those two parameters. The equipment was our mobile devices on both Andriod and iOS platforms: Huawei P20 Pro and iPad Air 3, and our laptops with the IDE Andriod Studio and Xcode installed. 
+	
+	The testing procedure was:
+	\begin{enumerate}
+        \item Installed datA centeR, the app that we have developed on the testing mobile device, and opened the app.
+        \item Let our app run for 5 minutes, and recorded values of frame rate and device temperature every 10 seconds. The measurements were conducted by using \texttt{adb} commands on the laptop with Andriod Studio installed, and running Instruments, a performance analysis and testing tool integrated in Xcode.
+        \item Calculated the mean frame rate and temperature as our testing results.
+    \end{enumerate}
+	
+	The results were compared to the expected results shown in Table \ref{tab:es}, which indicated that the mean frame rate should be larger than 15 fps, and the device temperature should be lower than 40 $^\circ$C.
+    
+    \item[d.] Direct reading:
+    
+    For ``Size of Software Package", the equipment that we used was just our mobile devices on both Andriod and iOS platforms: Huawei P20 Pro and iPad Air 3, and the testing procedure was: directly read the size of software package from the app management panel in the ``Settings" of mobile devices. The results were compared to the expected results shown in Table \ref{tab:es}, which indicated that the size of our app package should be smaller than 110 MB.
+\end{itemize}
+
+A summary of the validation methods for all the Engineering Specifications is shown in table \ref{validation}.
+
+\setcounter{table}{12}
+\begin{table}[H]
+    \centering
+    \caption{Summary of validation methods for Engineering Specifications.}
+    \begin{tabular}{|l|p{9cm}|}
+        \hline
+        \textbf{Engineering Specifications} & \textbf{Method for testing}  \\
+        \hline
+        Object Localization Correctness & Repeated trials to calculate success rate \\
+        \hline
+        Data Retrieval Accuracy & Repeated trials to calculate success rate \\
+        \hline
+        Object Localization Time & Repeated trials to calculate average time\\
+        \hline
+        Barcode Identification Time & Repeated trials to calculate average time \\
+        \hline
+        Database Query Time & Repeated trials to calculate average time\\
+        \hline
+        AR Image Generation Time & Repeated trials to calculate average time \\
+        \hline
+        Frame Rate & Sampling from continuous measurements to find the mean value	\\
+        \hline
+        Device Temperature in Operation & Sampling from continuous measurements to find the mean value	\\
+        \hline
+        Size of Software Package & Direct reading\\
+        \hline
+    \end{tabular}
+    \label{validation}
+\end{table}
+
+\subsection{Results}
+We conducted experiments following the procedure introduced in the above subsection. The test results that we obtained and the expected results that have been listed in Table \ref{tab:es} are shown in Table \ref{tab:res}. From the table, we can see that most of the test results conform to the expected results, except the barcode identification time. In other words, most of the parameters of our app meet the specifications. 
+
+\begin{table}[H]
+    \centering
+    \caption{The test results and the corresponding expected results.}
+    \begin{tabular}{|l|p{4cm}|p{4cm}|}
+        \hline
+        \textbf{Engineering Specifications} & \textbf{Test Results} & \textbf{Expected Results} \\
+        \hline
+        Object Localization Correctness & $\approx$ 98\% & $>$ 90\% \\
+        \hline
+        Data Retrieval Accuracy & 100\% & $>$ 99\%\\
+        \hline
+        Object Localization Time & $\approx$ 0.23s & $<$ 0.5s\\
+        \hline
+        Barcode Identification Time &  \cellcolor[RGB]{255, 127, 36} $\approx$ 0.85s & $<$ 0.5s\\
+        \hline
+        Database Query Time & $\approx$ 0.89s & $<$ 1s\\
+        \hline
+        AR Image Generation Time & $<$ 0.1s & $<$ 0.1s\\
+        \hline
+        Frame Rate & $\approx$ 60 fps & $>$ 15 fps\\
+        \hline
+        Device Temperature in Operation & $\approx$ 39.5 $^\circ$C & $<$ 40 $^\circ$C \\
+        \hline
+        Size of Software Package & $\approx$ 16 MB & $<$ 110 MB\\
+        \hline
+    \end{tabular}
+    \label{tab:res}
+\end{table}
+
+% xjl
+\section{Engineering Changes\label{sec:ECN}}
+
+Compared to the proposed design in the previous design review, we have added a few new features to our app to improve user experience and make it more informative. For the brief Engineering Changes Notices (ECN), please refer to section \ref{brief_ECN}. The detailed description of changes are listed as follows:
+
+\begin{itemize}
+    \item[1.] Display of rack structure:
+    
+    In the previous design, we only used red blocks to mark the structure of a rack in the AR interface. Now we have added labels of layer numbers to make the structure of the rack clearer (fig. \ref{xjl-dr4-1}).
+    
+    \begin{figure}[H]
+    \centering
+    \includegraphics[width=0.4\linewidth]{fig/xjl-dr4-1.png}
+    \caption{Labels of layer numbers.}
+    \label{xjl-dr4-1}
+    \end{figure}
+    
+    \item[2.] Display of rack information:
+    
+    In the previous design, we planned to put the rack information together with the device information in one single text window. Now we place the rack information into a separated text window, and use a red line to connect the rack and the window help the user locate the rack information easily (left picture in fig. \ref{xjl-dr4-2}). Also, we add a new button ``Show Temperature Plots" to the window. When the user click on it, the window will be expanded and the real-time temperature data will be displayed (right picture in fig. \ref{xjl-dr4-2}).
+    
+    \begin{figure}[H]
+    \centering
+    \includegraphics[height=4.5cm]{fig/xjl-dr4-2}
+    \quad
+    \includegraphics[height=4.5cm]{fig/xjl-dr4-3}
+    \caption{Display the rack (cabinet) information in a separated text window; use a red line to connect the rack and the window; add a button to show real-time temperature data.}
+    \label{xjl-dr4-2}
+    \end{figure}
+    
+    
+    \item[3.] ``Freeze" function:
+    
+    We have also added a ``Freeze" function to improve user experience. If the user would like to read the displayed information without keep holding the device vertically, he/she may click on the ``Pause" button (fig. \ref{xjl-dr4-4}) to freeze the AR session, so that a still image captured upon the press of the button is kept in the interface (fig. \ref{xjl-dr4-6}).
+    
+    \begin{figure}[H]
+    \centering
+    \includegraphics[width=0.45\linewidth]{fig/xjl-dr4-4.png}
+    \caption{The ``Pause" button.}
+    \label{xjl-dr4-4}
+    \end{figure}
+    
+    \begin{figure}[H]
+    \centering
+    \includegraphics[height=4.5cm]{fig/xjl-dr4-6a}
+    \quad
+    \includegraphics[height=4.5cm]{fig/xjl-dr4-6b}
+    \caption{A still image captured upon the click on the button is kept in the interface. In this way, the user can hold the device in whatever way to read the information.}
+    \label{xjl-dr4-6}
+    \end{figure}
+    
+    After the user finishes reading the information, he/she can press the ``Continue" button to continue the AR session (fig. \ref{xjl-dr4-5}). The interface will recover to the status before the ``Pause" is clicked.
+    
+    \begin{figure}[H]
+    \centering
+    \includegraphics[width=0.45\linewidth]{fig/xjl-dr4-5}
+    \caption{The ``Continue" button.}
+    \label{xjl-dr4-5}
+    \end{figure}
+    
+    
+\end{itemize}
+
+
+%AR session. The i cyxecover the
+\section{Discussion}
+
+In general, our application can meet the needs of maintenance staff in a data center, displaying necessary information they require for device maintenance in AR. In this part, the strengths and weaknesses of our design are discussed.
+
+\subsection{Strengths}
+
+The strengths that are worth mentioning in our design lie on its workflow and its realization of our engineering specifications. 
+
+\begin{enumerate}
+    \item One of the strengths in our workflow design is the display of information in AR. It can not only display the information of the corresponding device, but also mark the structure of racks. This enables users to connect the displayed information with the device in the data center accurately. Knowing the exact location of the device, which is marked in our interface, the user can easily find this device and then perform maintenance. Also, we display the information of the rack that the device is located in along with the information of the device, which gives user a complete view of the current status of the device.           
+    
+    Another strength in our workflow is the "Freeze" function in our application. In order to let user better correlate the information with the device, we align the information with the device in the AR world. However, this may cause a problem that in order to read the information, the user must keep holding the phone/pad so that the device is in the camera view, which is not convenient for manual maintenance. So we add a "Freeze" function, which captures the current scene and displays it statically on the screen. This enables users to put aside the phone/pad and frees users' hands so that they can perform operations on the device. 
+    
+    In addition, the functions of our application involves bar code identification, data retrieval and information display in AR, which are quite complicated and hard to be compatible with each other. We tackle this difficulty by utilizing layer programming and performing lots of tests on each sub-function before integrating them together. 
+    
+    \item Our design meets the customer requirements and satisfies most of our engineering specifications. First, with all the required functions implemented, the size of our software package is kept small enough by coding compactly, so that it does not take up too much disk space of user's phone/pad. Second, the accuracy of the data retrieval is high, which means the displayed information in our application is very reliable. Third, the frame rate is set high enough to ensure smooth display, while the temperature of the phone/pad is controlled in a comfortable range. In a word, our design is user-friendly with powerful functions.
+\end{enumerate}
+
+
+\subsection{Weaknesses}
+
+Although our application can meet most of the needs, there are still several weaknesses in detailed design.
+
+\begin{enumerate}
+    \item There is one engineering specification that we slightly fail to meet. Sometimes the time needed for barcode identification is too long and the user may get impatient during this process. One possible reason is that the lighting condition is very critical to barcode identification, which leads to unstable identification time. One thing we can improve is to apply some image recognition algorithms to accelerate barcode identification.
+    \item Our application has an issue on strictly aligning the information of the device with the plane of the device. The AR world needs an anchor to build the coordination system, and we set this anchor according to the feature points found by the AR toolkit, which adds some randomness to the coordination system. Thus, when the feature points are not strictly align with the plane of the device, the displayed information could easily get slant, and the user needs to adjust the screen in order to view the information. One possible solution is to display the information according to relative position. We can first obtain the coordination of the plane of the device, and then set the location of the display accordingly.
+    \item Currently we use image recognition tools to realize the identification of a rack, which limits the types of racks it can identify. To identify various types of racks, machine learning techniques can be used, which requires model training.
+\end{enumerate}
+
+
+
+\section{Recommendations}
+
+For future development of this project, we have the following recommendations, including system-level and detailed-level recommendations.
+
+\subsection{System-level recommendations}
+
+\begin{enumerate}
+    \item The first system-level recommendation is based on one of the weaknesses of our design. In a data center, there are usually various types of racks. If we want to recognize them all using only computer vision tools, it needs the photos of all types of racks, which can dramatically increase the package size. Instead, it is possible to train a machine learning model to recognize them all. 
+    \item Currently AR consumes a lot of power, which needs further improvement of AR developers. In the perspective of application design, we can support a power-saving mode for user. In this mode, the frame rate for both detecting barcode and generating AR image can be set smaller compared with normal mode, which can save some power. 
+    \item A button can be added to send the owner of the device an email in case there is breakdown. It is important to notify the owner when there is something wrong happening on his/her device, so that proper action can be taken. Our backend database contains the information about the owner of the device, and this function can be supplied by adding a button for maintenance staff.
+    \item For a specific device, the information provided by flowgate includes the information about the corresponding rack. However, it cannot provide the information of all devices on a rack according to the rack id. In the future, this can be improved in cooperation with VMware technicians by adding a new API to flowgate.
+\end{enumerate}
+
+\subsection{Detailed-level recommendations}
+
+\begin{enumerate}
+    \item Our application can only support bar code identification for now, while QR code is also widely used. For future development, QR code identification can be integrated into this application.
+    \item The function tests are done by developers currently and there may be hidden bugs in our application. More tests done by real users are needed and then the workflow and the user interface can be further improved. 
+\end{enumerate}
+
+
+% tcy
+\section{Conclusion}
+The existing computer systems used for DC maintenance and audits are usually not integrated together, and lack user-friendly enough instructions and information access. To solve the problem, our project produces an app that could obtain all kinds of information related to a specific data center from the back end database Flowgate, and display necessary information using AR. The customer requirements include short reaction time, information correctness, comfortable display, and portable device. By conducting literature search and considering the constraints in reality, we further set up the engineering specifications based on the requirements. We generate quite a few concepts through morphological analysis, and select a concept after comparison. This chosen concept is to use ML Kit for barcode localization and identification, cache for data retrieval, and 3-D display for user interface.
+
+For implementation, we first install and configure the back-end Flowgate system. Then we implement the AR apps on both Android and iOS platforms. To validate the functionality of our design, we conduct experiments in the data center in Longbin Building, and most of the test results conform to the expected results. In general, our application can fulfill the needs of data center technicians, displaying all kinds of necessary information in a user-friendly manner. The strengths include meeting the customer requirements, satisfying most of our engineering specifications, and so on. However, several weaknesses exist, for example, sometimes the barcode identification time is too long. We suggest that future student teams fix the issues, and improve the product by implementing more functions like training a machine learning model to recognize various racks.
+
+
+
+
+
+
+
+% xjl
+\section{Acknowledgements}
+We would like to express our deepest thanks to our sponsor Gavin Lu and mentor Yixing Jia, for providing us with this opportunity to work with VMware for the capstone project, as well as their great support and guidance. We would also like to extend our gratitude to Dr. Mingjian Li for his kind and instructive advice on our project. In addition, we gratefully acknowledge Mr. Bin Zhu and Mr. Yunlong Cai for their IT support, and express our appreciation to the providers of open source software and packages we have used in this project. 
+
+
+
+
+
+
+
+\newpage
+% hly
+\begin{flushleft}
+\begin{thebibliography}{99}
+    \bibitem{xjl1}{M. F. Abadi, F. Haghighat, and F. Nasiri, “Data center maintenance: applications and future research directions,” Facilities, vol. 38, no. 9/10, pp. 691–714, 2020.}
+    \bibitem{xjl2}{M. Ayat, M. Sharifi, S. Ibrahim, and S. Sahibudin, “CMDB Implementation Approaches and Considerations in SME/SITU's Companies,” 2009 Third Asia International Conference on Modelling \& Simulation, 2009.}
+    \bibitem{xjl3}{ Vmware. ``Flowgate." GitHub. [Online]. Available: \href{https://github.com/vmware/flowgate}{https://github.com/vmware/flowgate}. Accessed: Sept. 27, 2020.}
+    \bibitem{xjl4}{A. B. Craig, Ed., ``Understanding Augmented Reality", San Francisco, Morgan Kaufmann, 2013.}
+	\bibitem{arAssembly}{M. Hakkarainen, C. Woodward and M. Billinghurst, ``Augmented assembly using a mobile phone," 2008 7th IEEE/ACM International Symposium on Mixed and Augmented Reality, Cambridge, 2008, pp. 167-168, doi: 10.1109/ISMAR.2008.4637349.}
+	\bibitem{arIBM}{S. Deffeyes, ``Mobile augmented reality in the data center," in IBM Journal of Research and Development, vol. 55, no. 5, pp. 51-55, Sept.-Oct. 2011, doi: 10.1147/JRD.2011.2163278.}
+	\bibitem{reactionTime}{N. Fiona, ``A Study on Tolerable Waiting Time: How Long Are Web Users Willing to Wait?", Behaviour \& Information Technology - Behaviour \& IT, 2003,  pp. 285, doi: 10.1080/01449290410001669914.}
+	\bibitem{localization}{Q. Peng and Y. Song, ``Object recognition and localization based on Mask R-CNN," Journal of Tsinghua University (Science and Technology), 2019, vol. 59, no. 2, pp. 135-141.}
+	\bibitem{identification}{E. Ohbuchi, H. Hanaizumi and L. A. Hock, ``Barcode readers using the camera device in mobile phones," 2004 International Conference on Cyberworlds, Tokyo, Japan, 2004, pp. 260-265, doi: 10.1109/CW.2004.23.}
+	\bibitem{generateAR}{A. Baek, K. Lee, and H. Choi, ``CPU and GPU parallel processing for mobile Augmented Reality," vol. 1, pp.133-137, 2013, doi: 10.1109/CISP.2013.6743972.}
+	\bibitem{localAccuarcy}{O. Oktay et al., ``Stratified Decision Forests for Accurate Anatomical Landmark Localization in Cardiac Images," in IEEE Transactions on Medical Imaging, vol. 36, no. 1, pp. 332-342, Jan. 2017, doi: 10.1109/TMI.2016.2597270.}
+	\bibitem{dataAccuarcy}{LabCE, ``Data center operations supported by augmented reality," MediaLab. [Online]. Available:
+	\href{https://www.labce.com/spg650115_barcode_reading_and_accuracy.aspx}{https://www.labce.com/spg650115\_barcode\_reading\_and\_accuracy.aspx}. Accessed: Oct. 10, 2020.}
+	\bibitem{smooth}{A. Craig. Augmented Reality Hardware, pp. 69-124, 2013. doi: 10.1016/B978-0-240-82408-6.00003-5.}
+	\bibitem{temperatureApple}{Apple. ``Keeping iPhone, iPad, and iPod touch within acceptable operating temperatures." Apple. [Online]. Available: \href{https://support.apple.com/en-us/HT201678}{https://support.apple.com/en-us/HT201678}. Accessed: Oct. 10, 2020.}
+	\bibitem{temperatureGoogle}{Google. ``Safety \& regulatory manual (Pixel 3 \& Pixel 3 XL 2018)." Google. [Online]. Available: \href{https://support.google.com/pixelphone/answer/9134668?hl=en}{https://support.google.com/pixelphone/answer/9134668?hl=en}. Accessed: Oct. 10, 2020.}
+	\bibitem{ARkit}{Apple. ``ARKit." Apple. [Online]. Available: \href{https://developer.apple.com/documentation/arkit}{https://developer.apple.com/documentation/arkit}. Accessed: Oct. 10, 2020.}
+	\bibitem{ARCore}{Google. ``Supported Devices." Google. [Online]. Available: \href{https://developers.google.com/ar/discover/supported-devices}{https://developers.google.com/ar/discover/supported-devices}. Accessed: Oct. 10, 2020.}
+	\bibitem{AppStore}{Apple. ``App Store." Apple. [Online]. Available: \href{https://www.apple.com/app-store}{https://www.apple.com/app-store}. Accessed: Oct. 10, 2020.}
+	\bibitem{GooglePlay}{Google. ``Google Play." Google. [Online]. Available: \href{https://play.google.com/store/apps}{https://play.google.com/store/apps}. Accessed: Oct. 10, 2020.}
+	\bibitem{zsy1}{Apple. ``Apple Developer.'' Apple. [Online]. Available: \href{https://developer.apple.com/xcode/whats-new/}{https://developer.apple.com/xcode/whats-new/}. Accessed: Oct. 10, 2020.}
+	\bibitem{zsy2}{Apple. ``Apple Developer.'' Apple. [Online]. Available: \href{https://developer.apple.com/documentation/arkit/arframe/2875718-hittest}{https://developer.apple.com/documentation/arkit/arframe/2875718-hittest}. Accessed: Oct. 10, 2020.}
+	\bibitem{zsy3}{Apple. ``Apple Developer.'' Apple. [Online]. Available: \href{https://developer.apple.com/documentation/arkit/scanning_and_detecting_3d_objects}{https://developer.apple.com/documentation/arkit/scanning$\_$and$\_$detecting$\_$3d$\_$objects}. Accessed: Oct. 10, 2020.}
+	\bibitem{zsy4}{Apple. ``Apple Developer.'' Apple. [Online]. Available: \href{https://developer.apple.com/documentation/arkit/detecting_images_in_an_ar_experience}{https://developer.apple.com/documentation/arkit/detecting$\_$images$\_$in$\_$an$\_$ar$\_$experience}. Accessed: Oct. 10, 2020.}
+	\bibitem{SceneForm}{Google. ``Sceneform.'' Google. [Online]. Available: \href{https://developers.google.cn/ar/develop/java/sceneform/}{https://developers.google.cn/ar/develop/java/sceneform/}. Accessed: Oct. 10, 2020.}
+	\bibitem{MLKit}{Google. ``Barcode Scanning.'' ML Kit. [Online]. Available: \href{https://developers.google.cn/ml-kit/vision/barcode-scanning}{https://developers.google.cn/ml-kit/vision/barcode-scanning}. Accessed: Oct. 15, 2020.}
+\end{thebibliography}
+\end{flushleft}
+
+
+
+
+
+\newpage
+% zsy
+\section{Appendix}
+% xjl
+\subsection{Bill of Materials}
+Since all the software and packages we have used in this project are free (or provided by our institute), we do not need to spend any budget. Some details of them are listed in table \ref{bill_tbl}.
+
+% Table generated by Excel2LaTeX from sheet 'Sheet1'
+\begin{table}[htbp]
+  \centering
+  \caption{Material sources}
+    \begin{tabular}{|l|l|l|l|}
+    \hline
+    Item  & Source & Cost  & Contact \\
+    \hline
+    Flowgate & VMware & 0 & \url{https://flings.vmware.com/flowgate} \\
+    \hline
+    ESXi  & VMware & 0 & \url{https://www.vmware.com/products/esxi-and-esx.html} \\
+    \hline
+    Android Studio & Google & 0 & \url{https://developer.android.com/studio} \\
+    \hline
+    Xcode & Apple & 0 & \url{https://developer.apple.com/xcode} \\
+    \hline
+    ARKit & Apple & 0 & \url{https://developer.apple.com/augmented-reality} \\
+    \hline
+    ARCore & Google & 0 & \url{https://developers.google.com/ar?hl=zh_cn} \\
+    \hline
+    Sceneform & Google & 0 & \url{https://developers.google.com/sceneform/develop} \bigstrut\\
+    \hline
+    ML Kit & Google & 0 & \url{https://developers.google.com/ml-kit} \\
+    \hline
+    \end{tabular}%
+  \label{bill_tbl}%
+\end{table}%
+
+
+
+\subsection{Engineering Changes Notice (ECN) \label{brief_ECN}} 
+
+The brief notices for engineering changes are shown here.
+\begin{itemize}
+    \item[1.] Display of rack structure:
+    
+    \begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{ECN1.jpg}
+    %\caption{Labels of layer numbers.}
+    %\label{xjl-dr4-1}
+    \end{figure}
+    
+    \item[2.] Display of rack information:
+    
+    \begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{ECN2.jpg}
+    %\caption{Labels of layer numbers.}
+    %\label{xjl-dr4-1}
+    \end{figure}
+    
+    \item[3.] ``Freeze" function:
+    
+    \begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\linewidth]{ECN3.jpg}
+    %\caption{Labels of layer numbers.}
+    %\label{xjl-dr4-1}
+    \end{figure}
+    
+    
+\end{itemize}
+
+
+
+\subsection{Source Code}
+\subsubsection{iOS}
+\noindent\textbf{ViewController.swift}
+\inputminted{swift}{swift/ViewController.swift}
+\noindent\textbf{ViewController+ARSessionDelegate.swift}
+\inputminted{swift}{swift/ViewController+ARSessionDelegate.swift}
+\noindent\textbf{StatusViewController.swift}
+\inputminted{swift}{swift/StatusViewController.swift}
+\noindent\textbf{FlowgateClient.swift}
+\inputminted{swift}{swift/FlowgateClient.swift}
+\noindent\textbf{AppDelegate.swift}
+\inputminted{swift}{swift/AppDelegate.swift}
+\noindent\textbf{Info.plist}
+\inputminted{xml}{swift/Info.plist}
+\noindent\textbf{wireframe\_shader.metal}
+\inputminted{swift}{swift/wireframe_shader.metal}
+\noindent\textbf{Main.storyboard}
+\inputminted{xml}{swift/Main.storyboard}
+\subsubsection{Android}
+\noindent\textbf{AugmentedImageActivity.java}
+\inputminted{java}{Android/AugmentedImageActivity.java}
+\noindent\textbf{AugmentedImageFragment.java}
+\inputminted{java}{Android/AugmentedImageFragment.java}
+\noindent\textbf{AugmentedImageNode.java}
+\inputminted{java}{Android/AugmentedImageNode.java}
+\noindent\textbf{BarcodeScan.java}
+\inputminted{java}{Android/BarcodeScan.java}
+\noindent\textbf{YUV420toBitmap.java}
+\inputminted{java}{Android/YUV420toBitmap.java}
+\noindent\textbf{flowgateClient.java}
+\inputminted{java}{Android/flowgateClient.java}
+\noindent\textbf{flowgateClientActor.java}
+\inputminted{java}{Android/flowgateClientActor.java}
+\noindent\textbf{flowgateClientWorker.java}
+\inputminted{java}{Android/flowgateClientWorker.java}
+\noindent\textbf{MySingleton.java}
+\inputminted{java}{Android/MySingleton.java}
+\noindent\textbf{AndroidManifest.xml}
+\inputminted{xml}{Android/AndroidManifest.xml}
+\noindent\textbf{activity\_main.xml}
+\inputminted{xml}{Android/activity_main.xml}
+\noindent\textbf{server\_view.xml}
+\inputminted{xml}{Android/server_view.xml}
+\noindent\textbf{rounded\_bg.xml}
+\inputminted{xml}{Android/rounded_bg.xml}
+\subsection{Bios}
+\subsubsection{Shuyi Zhou}
+I am Shuyi Zhou, a senior student major in Electrical and Computer Engineering (ECE) exchanged to Germany last year, and the attached picture of myself is taken in Germany. I have learnt courses like data structures and algorithms, computer organization, and computer networks, and become familiar with programming languages like C/C++ and Python. I am currently working as a teaching assistant for \textit{Introduction to Computer and Programming} course. In the future, I will pursue a master degree in Tokyo.
+\begin{figure}[H]
+	\centering
+	\includegraphics[scale=0.25]{Bios/ZhouShuyi.jpeg}
+	\caption{Shuyi Zhou.}
+\end{figure} 
+\subsubsection{Chenyun Tao}
+I am Chenyun Tao, a senior student major in Electrical and Computer Engineering (ECE) at University of Michigan - Shanghai Jiao Tong University Joint Institute (UM-SJTU JI). I like travelling, and the attached picture of myself is taken during my trip to Japan. I have learnt courses like data structures and algorithms, computer organization, and computer networks, and become familiar with programming languages like C/C++ and Python. In the future, I will pursue a master degree, and I have participated in JI's GDP program with University of Michigan, School of Information.
+\begin{figure}[H]
+	\centering
+	\includegraphics[scale=0.2]{Bios/TaoChenyun.png}
+	\caption{Chenyun Tao.}
+\end{figure} 
+\subsubsection{Liying Han}
+I am Liying Han, a senior student major in Electrical and Computer Engineering (ECE) at University of Michigan - Shanghai Jiao Tong University Joint Institute (UM-SJTU JI). I have learnt courses like data structures and algorithms, computer organization, and machine learning. I am familiar with C/C++ and Python programming languages. In the future, I want to go abroad and study in the field of machine learning algorithms.
+\begin{figure}[H]
+	\centering
+	\includegraphics[scale=0.15]{Bios/HanLiying.png}
+	\caption{Liying Han.}
+\end{figure} 
+\subsubsection{Yaxin Chen}
+I am Yaxin Chen, a senior student major in Electrical and Computer Engineering (ECE) at University of Michigan - Shanghai Jiao Tong University Joint Institute (UM-SJTU JI). I have learnt courses like data structures and algorithms, computer organization and methods and tools for big data, and currently I work as a teaching assistant for operating systems course. I am familiar with C/C++ and Python programming languages. In the future, I want to study in the field of distributed systems.
+\begin{figure}[H]
+	\centering
+	\includegraphics[scale=0.2]{Bios/ChenYaxin.png}
+	\caption{Yaxin Chen.}
+\end{figure} 
+
+
+
+
+\subsubsection{Jinglei Xie}
+I am Jinglei Xie, a senior student major in Electrical and Computer Engineering (ECE) at University of Michigan - Shanghai Jiao Tong University Joint Institute (UM-SJTU JI). I am really interested in the field of computer science and information systems, and have taken various related courses like operating systems, big data, computer network, artificial intelligence, etc. I am familiar with several kinds of programming languages, and has been a teaching assistant for the course \textit{Programming and Elementary Data Structures}. Besides that, I also have robotics related experience, and has attended global competitions as a member of SJTU VEX robotics team. After graduation, I plan to go abroad for further studies, and pursue a master's degree in computer science. Maybe I would like to focus more on systems and networks, since they attract me the most.
+
+
+
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[scale=0.2]{Bios/XieJinglei.png}
+	\caption{Jinglei Xie.}
+\end{figure} 
+\end{onehalfspace}
+
+\end{document}
